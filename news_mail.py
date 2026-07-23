@@ -20,6 +20,7 @@ def create_news():
 1. 美国热点新闻10条
 2. 中国热点新闻10条
 3. 欧洲热点新闻10条
+
 4. 其他国际新闻10条
 
 另外提供：
@@ -37,7 +38,7 @@ def create_news():
 """
 
     result = client.responses.create(
-        model="gpt-5-mini",
+        model="gpt-4.1-mini",
         input=prompt
     )
 
