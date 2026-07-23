@@ -25,5 +25,6 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: |
           python news_mail.py
