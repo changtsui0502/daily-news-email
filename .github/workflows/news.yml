@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install openai
+          pip install openai requests
 
       - name: Run news mail
         env:
