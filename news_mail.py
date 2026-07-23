@@ -3,7 +3,8 @@ import requests
 from openai import OpenAI
 
 client = OpenAI(
-    api_key=os.environ["OPENAI_API_KEY"]
+     api_key=os.environ["DEEPSEEK_API_KEY"],
+     base_url="https://api.deepseek.com"
 )
 
 MAIL_TO = os.environ["MAIL_TO"]
@@ -38,7 +39,7 @@ def create_news():
 """
 
     result = client.responses.create(
-        model="gpt-4.1-mini",
+        model="deepseek-chat",
         input=prompt
     )
 
