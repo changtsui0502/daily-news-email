@@ -38,12 +38,17 @@ def create_news():
 格式适合邮件阅读。
 """
 
-    result = client.responses.create(
-        model="deepseek-chat",
-        input=prompt
-    )
+    result = client.chat.completions.create(
+    model="deepseek-chat",
+    messages=[
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+)
 
-    return result.output_text
+    return result.choices[0].message.content
 
 
 def send_email(content):
