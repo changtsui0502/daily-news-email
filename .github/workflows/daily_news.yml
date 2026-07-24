@@ -1,27 +1,47 @@
 name: Daily News Email
 
 on:
-  repository_dispatch: 
+  # 接收 Cloudflare Worker 触发
+  repository_dispatch:
     types:
       - daily-news
-  workflow_dispatch: 
+
+  # 手动测试
+  workflow_dispatch:
+
 
 jobs:
   send-news:
+
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+
+      # 拉取代码
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Python packages
-        run: |
-          pip install openai requests
 
-      - name: Run news mail
+      # 安装 Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+
+      # 安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+
+      # 运行新闻程序
+      - name: Generate and send news email
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
         run: |
           python news_mail.py
