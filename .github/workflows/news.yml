@@ -2,7 +2,7 @@ name: Daily News Email
 
 on:
   schedule:
-    - cron: “*/5 * * * *”
+    - cron: "*/5 * * * *"
 
   workflow_dispatch:
 
