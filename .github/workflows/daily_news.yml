@@ -2,8 +2,6 @@ name: Daily News Email
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/10 * * * *"
 
 jobs:
   send-news:
