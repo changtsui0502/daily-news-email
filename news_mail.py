@@ -1,7 +1,10 @@
 import os
 import requests
+import feedparser
+
 from datetime import datetime, timedelta
 import pytz
+
 from openai import OpenAI
 
 
@@ -14,6 +17,7 @@ MAIL_TO = os.environ["MAIL_TO"]
 RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 
 
+
 # ======================
 # DeepSeek
 # ======================
@@ -24,133 +28,196 @@ client = OpenAI(
 )
 
 
+
 # ======================
 # 获取北京时间昨天日期
 # ======================
 
 def get_yesterday():
 
-    tz = pytz.timezone("Asia/Shanghai")
+    tz = pytz.timezone(
+        "Asia/Shanghai"
+    )
 
     now = datetime.now(tz)
 
     yesterday = now - timedelta(days=1)
 
-    return yesterday.strftime("%Y-%m-%d")
+    return yesterday.strftime(
+        "%Y-%m-%d"
+    )
 
-
-
-# ======================
-# GDELT 新闻获取
-# ======================
-
-def get_news(keyword, country):
-
-    date = get_yesterday()
-
-    url = "https://api.gdeltproject.org/api/v2/doc/doc"
-
-
-    params = {
-
-        "query": f"{keyword} country:{country}",
-
-        "mode": "artlist",
-
-        "format": "json",
-
-        "maxrecords": 10,
-
-        "startdatetime":
-            date.replace("-", "")
-            + "000000",
-
-        "enddatetime":
-            date.replace("-", "")
-            + "235959"
-    }
-
-
-    try:
-
-        r = requests.get(
-            url,
-            params=params,
-            timeout=20
-        )
-
-        data = r.json()
-
-
-        articles = []
-
-
-        for item in data.get("articles", []):
-
-            articles.append(
-                {
-                    "title":
-                        item.get("title"),
-
-                    "url":
-                        item.get("url")
-                }
-            )
-
-
-        return articles
-
-
-    except Exception as e:
-
-        print(e)
-
-        return []
 
 
 
 # ======================
-# DeepSeek整理新闻
+# RSS真实新闻源
+# ======================
+
+
+RSS_SOURCES = {
+
+
+"美国":
+[
+"https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml",
+"https://www.reuters.com/rssFeed/worldNews"
+],
+
+
+"中国":
+[
+"https://feeds.bbci.co.uk/news/world/asia/rss.xml"
+],
+
+
+"欧洲":
+[
+"https://feeds.bbci.co.uk/news/world/europe/rss.xml"
+],
+
+
+"国际":
+[
+"https://feeds.bbci.co.uk/news/world/rss.xml"
+]
+
+}
+
+
+
+
+# ======================
+# 获取真实新闻
+# ======================
+
+def get_real_news():
+
+
+    news_text = ""
+
+
+    for region, feeds in RSS_SOURCES.items():
+
+        news_text += "\n\n"
+        news_text += "【"+region+"】\n"
+
+
+        count = 0
+
+
+        for url in feeds:
+
+
+            try:
+
+                feed = feedparser.parse(url)
+
+
+                for item in feed.entries:
+
+
+                    if count >= 10:
+                        break
+
+
+                    title = item.title
+
+                    summary = (
+                        item.get(
+                            "summary",
+                            ""
+                        )
+                    )
+
+
+                    news_text += (
+
+                        "\n标题:"
+                        + title
+
+                        + "\n摘要:"
+                        + summary[:300]
+
+                        + "\n"
+
+                    )
+
+
+                    count += 1
+
+
+
+            except Exception as e:
+
+                print(
+                    "RSS错误:",
+                    e
+                )
+
+
+    return news_text
+
+
+
+
+
+# ======================
+# DeepSeek整理
 # ======================
 
 def summarize_news(news):
+
+
+    date = get_yesterday()
 
 
     prompt = f"""
 
 你是一名国际新闻编辑。
 
-请根据以下真实新闻资料，
-整理昨天({get_yesterday()})全球热点日报。
+下面提供的是新闻RSS抓取的真实新闻。
+
+请整理成：
+{date} 全球新闻日报
+
 
 要求：
 
-1. 美国新闻10条
-2. 中国新闻10条
-3. 欧洲新闻10条
-4. 其他国际新闻10条
+一、美国热点10条
+
+二、中国热点10条
+
+三、欧洲热点10条
+
+四、其他国际新闻10条
 
 
 每条格式：
 
-【标题】
+【新闻标题】
 
 摘要：
-2-3句话。
+2-3句话
 
 
 另外增加：
 
 黄金价格：
-WTI原油：
-布伦特原油：
+WTI原油价格：
+布伦特原油价格：
 
 
-新闻必须注明日期：
-{get_yesterday()}
+要求：
+
+1. 只能根据提供新闻整理
+2. 不允许虚构新闻
+3. 标明日期 {date}
+4. 中文输出
+5. 适合邮件阅读
 
 
-新闻资料：
+新闻数据：
 
 {news}
 
@@ -170,7 +237,7 @@ WTI原油：
 
         ],
 
-        temperature=0.3
+        temperature=0.2
 
     )
 
@@ -180,83 +247,48 @@ WTI原油：
 
 
 
+
 # ======================
-# 获取新闻
+# 生成新闻
 # ======================
 
 def create_news():
 
 
-    categories = {
+    print(
+        "正在抓取真实新闻..."
+    )
 
 
-        "美国":
-        ("USA", "United States"),
+    raw_news = get_real_news()
 
 
-        "中国":
-        ("CHN", "China"),
+    print(
+        "新闻抓取完成"
+    )
 
 
-        "欧洲":
-        ("EUR", "Europe"),
-
-
-        "其他":
-        ("WORLD", "international")
-
-    }
-
-
-    all_news=""
-
-
-    for name,(country,key) in categories.items():
-
-
-        print("获取:",name)
-
-
-        result=get_news(
-            key,
-            country
-        )
-
-
-        all_news += "\n\n"
-
-        all_news += name
-
-        all_news += "\n"
-
-
-        for n in result:
-
-            all_news += (
-                "- "
-                + str(n["title"])
-                + "\n"
-            )
-
-
-
-    return summarize_news(all_news)
+    return summarize_news(
+        raw_news
+    )
 
 
 
 
 
 # ======================
-# 发送邮件
+# 邮件发送
 # ======================
 
 def send_email(content):
 
 
-    url="https://api.resend.com/emails"
+    url = (
+        "https://api.resend.com/emails"
+    )
 
 
-    headers={
+    headers = {
 
         "Authorization":
         f"Bearer {RESEND_API_KEY}",
@@ -267,25 +299,29 @@ def send_email(content):
     }
 
 
-    data={
+    data = {
 
 
         "from":
+
         "Daily News <onboarding@resend.dev>",
 
 
         "to":
+
         [
             MAIL_TO
         ],
 
 
         "subject":
+
         f"全球新闻日报 {get_yesterday()}",
 
 
 
         "html":
+
         f"""
 
 <html>
@@ -293,14 +329,13 @@ def send_email(content):
 <body>
 
 <h2>
-🌍 全球热点新闻日报
+🌍 全球新闻日报
 </h2>
 
 <p>
 日期：
 {get_yesterday()}
-</p >
-
+</p>
 
 <hr>
 
@@ -324,7 +359,7 @@ white-space:pre-wrap;
     }
 
 
-    r=requests.post(
+    response = requests.post(
 
         url,
 
@@ -335,7 +370,9 @@ white-space:pre-wrap;
     )
 
 
-    print(r.text)
+    print(
+        response.text
+    )
 
 
 
@@ -345,20 +382,15 @@ white-space:pre-wrap;
 # 主程序
 # ======================
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
 
     print(
-        "开始生成昨日新闻..."
+        "开始生成昨日新闻"
     )
 
 
-    news=create_news()
-
-
-    print(
-        "新闻生成完成"
-    )
+    news = create_news()
 
 
     send_email(news)
